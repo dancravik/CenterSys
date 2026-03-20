@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     groq_api_key: str
     groq_model: str = "openai/gpt-oss-120b"
- 
+
+    groq_api_key_norm: str 
     groq_normalizer_model: str = "llama-3.3-70b-versatile"
  
     db_host: str = "localhost"
