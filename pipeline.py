@@ -241,17 +241,17 @@ def run_pipeline_db(limit: int | None = None) -> None:
 
 
 # без main.py
-if __name__ == "__main__":
-    import argparse
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("app.log", encoding="utf-8"),
-        ]
-    )
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=None)
-    args = parser.parse_args()
-    run_pipeline_db(limit=args.limit)
+# if __name__ == "__main__":
+#     import argparse
+#     logging.basicConfig(
+#         level=logging.INFO,
+#         format="%(asctime)s [%(levelname)s] %(message)s",
+#         handlers=[
+#             logging.StreamHandler(),
+#             logging.FileHandler("app.log", encoding="utf-8"),
+#         ]
+#     )
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("--limit", type=int, default=None)
+#     args = parser.parse_args()
+#     run_pipeline_db(limit=args.limit)
