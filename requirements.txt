@@ -3,3 +3,4 @@ instructor==1.14.5
 pydantic==2.12.5
 pydantic-settings==2.13.1
 psycopg2-binary==2.9.11
+pymorphy3==2.0.6
