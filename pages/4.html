@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniReview — Отчёты</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/common.css">
+<style>
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s;
+    white-space: nowrap;
+  }
+
+  .btn-download:hover { opacity: .85; }
+  .btn-download svg { width: 18px; height: 18px; }
+
+  /* Заголовки всех карточек */
+  .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .card-header svg { width: 20px; height: 20px; }
+  .card-header-title { font-size: 15px; font-weight: 600; }
+  .card-header-sub { font-size: 13px; color: var(--gray); margin-bottom: 20px; }
+
+  /* Карточка вверху страницы */
+  .summary-card { margin-bottom: 24px; }
+  .summary-card .card-header-sub { margin-bottom: 24px; }
+  /* Контейнер для статистики */
+  .summary-stats { display: grid; grid-template-columns: repeat(4, 1fr); }
+  /* Тексты в контейнере */
+  .stat-cell { text-align: center; padding: 8px 0; position: relative; }
+  .stat-cell:not(:last-child)::after { content: ''; position: absolute; right: 0; top: 8px; bottom: 8px; width: 1px; background: var(--border); }
+  .stat-value { font-size: 32px; font-weight: 700; line-height: 1.2; margin-bottom: 4px; }
+  .stat-label { font-size: 13px; color: var(--gray); }
+  .stat-highlight { display: inline-block; padding: 4px 20px; background: var(--green-light); border-radius: 12px; color: var(--green); }
+
+  /* Сетка в два столбика для карточек */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+
+  /* Содержимое карточек */
+  .item-list { display: flex; flex-direction: column; }
+  .item-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--border); }
+  .item-row:first-child { border-top: none; }
+  .item-row--reco { align-items: flex-start; padding: 16px 0; }
+
+  .issue-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .issue-name { font-size: 14px; font-weight: 500; flex: 1; }
+  .issue-count { font-size: 13px; color: var(--gray); white-space: nowrap; flex-shrink: 0; }
+
+  .issue-badge { font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
+  .badge-high-red    { background: var(--red-light); color: var(--red); }
+  .badge-medium-red  { background: #fff7ed; color: var(--orange); }
+  .badge-low-red     { background: var(--bg); color: var(--gray); }
+  .badge-high-green  { background: var(--green-light); color: var(--green); }
+
+  /* Рекомендации */
+  .reco-number { width: 28px; height: 28px; border-radius: 8px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--gray); flex-shrink: 0; }
+  .reco-body { flex: 1; }
+  .reco-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .reco-desc { font-size: 13px; color: var(--gray); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<script src="/static/icons.js"></script>
+<script src="/static/api.js"></script>
+<script src="/static/sidebar.js" data-active="reports"></script>
+
+<main class="main">
+  <div class="page-header">
+    <div>
+      <h1 class="main-title">Отчёты</h1>
+      <p class="main-subtitle">Аналитические отчёты и рекомендации</p>
+    </div>
+    <button class="btn-download" id="downloadBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Скачать отчёт
+    </button>
+  </div>
+
+  <div id="summaryCard" class="card summary-card"></div>
+
+  <div class="two-col">
+    <div class="card" id="problemsCard"></div>
+    <div class="card" id="strengthsCard"></div>
+  </div>
+
+  <div class="card" id="recoCard"></div>
+</main>
+
+<script>
+const levelLabels = { high: 'Высокий', medium: 'Средний', low: 'Низкий' };
+
+// Рендеринг динамичной части.
+function render(report) {
+  const summary         = report && report.summary;
+  const problems        = report && report.problems;
+  const strengths       = report && report.strengths;
+  const recommendations = report && report.recommendations;
+
+  // Summary
+  const summaryEl = document.getElementById('summaryCard');
+  if (!summary) { summaryEl.innerHTML = NO_DATA; }
+  else { summaryEl.innerHTML = `
+    <div class="card-header">
+      ${svg('barChart')}
+      <span class="card-header-title">Сводка за период</span>
+    </div>
+    <div class="card-header-sub">${summary.period}</div>
+    <div class="summary-stats">
+      ${summary.stats.map(s => `
+        <div class="stat-cell">
+          <div class="stat-value">${s.highlight ? `<span class="stat-highlight">${s.value}</span>` : s.value}</div>
+          <div class="stat-label">${s.label}</div>
+        </div>`).join('')}
+    </div>`; }
+
+  // Problems
+  const problemsEl = document.getElementById('problemsCard');
+  if (!problems) { problemsEl.innerHTML = NO_DATA; }
+  else { problemsEl.innerHTML = `
+    <div class="card-header">
+      <span style="color:var(--orange)">${svg('warning')}</span>
+      <span class="card-header-title">Ключевые проблемы</span>
+    </div>
+    <div class="card-header-sub">Требуют внимания руководства</div>
+    <div class="item-list">
+      ${problems.map(d => {
+        const dotColor = d.level === 'high' ? 'var(--red)' : d.level === 'medium' ? 'var(--orange)' : 'var(--gray)';
+        const badgeClass = d.level === 'high' ? 'badge-high-red' : d.level === 'medium' ? 'badge-medium-red' : 'badge-low-red';
+        return `<div class="item-row">
+          <span class="issue-dot" style="background:${dotColor}"></span>
+          <span class="issue-name">${d.name}</span>
+          <span class="issue-count">${d.mentions} упом.</span>
+          <span class="issue-badge ${badgeClass}">${levelLabels[d.level]}</span>
+        </div>`;
+      }).join('')}
+    </div>`; }
+
+  // Strengths
+  const strengthsEl = document.getElementById('strengthsCard');
+  if (!strengths) { strengthsEl.innerHTML = NO_DATA; }
+  else { strengthsEl.innerHTML = `
+    <div class="card-header">
+      <span style="color:var(--green)">${svg('checkCircle')}</span>
+      <span class="card-header-title">Сильные стороны</span>
+    </div>
+    <div class="card-header-sub">Конкурентные преимущества</div>
+    <div class="item-list">
+      ${strengths.map(d => {
+        const badgeClass = 'badge-high-green';
+        return `<div class="item-row">
+          <span class="issue-dot" style="background:var(--green)"></span>
+          <span class="issue-name">${d.name}</span>
+          <span class="issue-count">${d.mentions} упом.</span>
+          <span class="issue-badge ${badgeClass}">${levelLabels[d.level]}</span>
+        </div>`;
+      }).join('')}
+    </div>`; }
+
+  // Recommendations
+  const recoEl = document.getElementById('recoCard');
+  if (!recommendations) { recoEl.innerHTML = NO_DATA; }
+  else { recoEl.innerHTML = `
+    <div class="card-header">
+      <span style="color:var(--orange)">${svg('lightbulb')}</span>
+      <span class="card-header-title">Рекомендации к действию</span>
+    </div>
+    <div class="card-header-sub">На основе анализа отзывов</div>
+    <div class="item-list">
+      ${recommendations.map((d, i) => {
+        const lvl = i < 2 ? 'high' : i < 4 ? 'medium' : 'low';
+        const badgeClass = lvl === 'high' ? 'badge-high-red' : lvl === 'medium' ? 'badge-medium-red' : 'badge-low-red';
+        return `<div class="item-row item-row--reco">
+          <span class="reco-number">${i + 1}</span>
+          <div class="reco-body">
+            <div class="reco-title">${d.title}</div>
+            <div class="reco-desc">${d.desc}</div>
+          </div>
+          <span class="issue-badge ${badgeClass}">${levelLabels[lvl]}</span>
+        </div>`;
+      }).join('')}
+    </div>`; }
+}
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  // Future: fetch('/api/reports/download')
+});
+
+fetchJSON('/api/report').then(render);
+</script>
+
+</body>
+</html>

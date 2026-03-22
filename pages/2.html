@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniReview — Аспекты анализа</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/common.css">
+<style>
+  .aspects-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .aspect-row { display: flex; align-items: center; gap: 20px; padding: 24px 28px; cursor: pointer; transition: box-shadow .15s; }
+  .aspect-row:hover { box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+
+  .aspect-rank { font-size: 15px; font-weight: 600; color: var(--gray); width: 24px; text-align: right; flex-shrink: 0; }
+
+  .aspect-icon-box { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .aspect-icon-box svg { width: 18px; height: 18px; }
+  .aspect-icon-box.positive { background: var(--green-light); }
+  .aspect-icon-box.positive svg { stroke: var(--green); }
+  .aspect-icon-box.negative { background: var(--red-light); }
+  .aspect-icon-box.negative svg { stroke: var(--red); }
+
+  .aspect-body { flex: 1; min-width: 0; }
+  .aspect-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .aspect-desc { font-size: 13px; color: var(--gray); margin-bottom: 14px; }
+
+  .aspect-metrics { display: flex; align-items: center; gap: 16px; }
+  .aspect-count { font-size: 14px; white-space: nowrap; flex-shrink: 0; }
+  .aspect-count strong { font-weight: 700; }
+  .aspect-count span { color: var(--gray); font-weight: 400; }
+
+  .aspect-bar-wide { flex: 1; max-width: 260px; height: 8px; border-radius: 4px; display: flex; overflow: hidden; }
+  .aspect-bar-wide span { height: 100%; }
+
+  .aspect-pct-labels { display: flex; gap: 12px; flex-shrink: 0; }
+  .aspect-pct-labels .pct { font-size: 13px; font-weight: 600; }
+
+  .aspect-chevron { flex-shrink: 0; color: var(--gray); display: flex; align-items: center; }
+  .aspect-chevron svg { width: 20px; height: 20px; }
+</style>
+</head>
+<body>
+
+<script src="/static/icons.js"></script>
+<script src="/static/api.js"></script>
+<script src="/static/sidebar.js" data-active="aspects"></script>
+
+<main class="main">
+  <h1 class="main-title">Аспекты анализа</h1>
+  <p class="main-subtitle">10 категорий для классификации отзывов студентов</p>
+  <div id="aspectsList" class="aspects-list"></div>
+</main>
+
+<script>
+function render(aspectsData) {
+  const el = document.getElementById('aspectsList');
+  if (!aspectsData) { el.innerHTML = NO_DATA; return; }
+  el.innerHTML = aspectsData.map((d, i) => {
+    const neg = 100 - d.pos;
+    const sentiment = d.pos >= 50 ? 'positive' : 'negative';
+    return `<div class="card aspect-row">
+      <div class="aspect-rank">${i + 1}.</div>
+      <div class="aspect-icon-box ${sentiment}">${svg(aspectIcon(d.name))}</div>
+      <div class="aspect-body">
+        <div class="aspect-title">${d.name}</div>
+        <div class="aspect-desc">${d.desc}</div>
+        <div class="aspect-metrics">
+          <div class="aspect-count"><strong>${d.mentions}</strong> <span>упоминаний</span></div>
+          <div class="aspect-bar-wide"><span class="bar-positive" style="width:${d.pos}%"></span><span class="bar-negative" style="width:${neg}%"></span></div>
+          <div class="aspect-pct-labels"><span class="percentage-diagram-text text-positive">${d.pos}% поз.</span><span class="percentage-diagram-text text-negative">${neg}% нег.</span></div>
+        </div>
+      </div>
+      <div class="aspect-chevron">${svg('chevronRight')}</div>
+    </div>`;
+  }).join('');
+}
+
+fetchJSON('/api/aspects').then(render);
+</script>
+</body>
+</html>

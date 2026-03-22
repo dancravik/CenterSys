@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniReview — Все отзывы</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/common.css">
+<style>
+  .toolbar { display: flex; align-items: center; gap: 16px; padding: 16px 24px; margin-bottom: 24px; }
+
+  .search-box { flex: 1; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; background: var(--white); }
+  .search-box svg { width: 18px; height: 18px; color: var(--gray); flex-shrink: 0; }
+  .search-box input { border: none; outline: none; font-family: inherit; font-size: 14px; color: var(--text); width: 100%; background: transparent; }
+  .search-box input::placeholder { color: var(--gray); }
+
+  .filter-pills { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex-shrink: 0; }
+  .filter-pill { padding: 10px 20px; font-size: 14px; font-weight: 500; color: var(--gray); cursor: pointer; background: var(--white); border: none; font-family: inherit; border-right: 1px solid var(--border); transition: all .15s; }
+  .filter-pill:last-child { border-right: none; }
+  .filter-pill:hover { background: #f9fafb; }
+  .filter-pill.active { color: var(--text); font-weight: 600; }
+
+  .aspect-dropdown { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; background: var(--white); font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+  .aspect-dropdown svg { width: 16px; height: 16px; color: var(--gray); }
+
+  .results-count { font-size: 13px; color: var(--gray); margin-bottom: 16px; }
+
+  .reviews-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .review-card { padding: 24px 28px; border-left: 3px solid transparent; }
+  .review-card.positive { border-left-color: var(--green); }
+  .review-card.negative { border-left-color: var(--red); }
+
+  .review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .review-tags { display: flex; align-items: center; gap: 8px; }
+  .review-tag { font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 6px; white-space: nowrap; }
+  .review-tag.aspect-positive { background: var(--green-light); color: var(--green); }
+  .review-tag.aspect-negative { background: var(--red-light); color: var(--red); }
+  .review-tag.entity { background: var(--bg); color: var(--gray); }
+
+  .review-votes { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+  .vote { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--gray); }
+  .vote svg { width: 16px; height: 16px; }
+
+  .review-quote { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .review-quote.positive { color: var(--green); }
+  .review-quote.negative { color: var(--red); }
+
+  .review-text { font-size: 14px; color: var(--text); line-height: 1.6; margin-bottom: 14px; }
+
+  .review-meta { display: flex; align-items: center; gap: 20px; font-size: 13px; color: var(--gray); }
+  .review-meta-item { display: flex; align-items: center; gap: 6px; }
+  .review-meta-item svg { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+
+<script src="/static/icons.js"></script>
+<script src="/static/api.js"></script>
+<script src="/static/sidebar.js" data-active="reviews"></script>
+
+<main class="main">
+  <h1 class="main-title">Все отзывы</h1>
+  <p class="main-subtitle" id="totalCount"></p>
+
+  <div class="card toolbar" id="toolbar"></div>
+
+  <div class="results-count" id="resultsCount"></div>
+  <div id="reviewsList" class="reviews-list"></div>
+</main>
+
+<script>
+let reviewsData = [];
+
+// Поисковая строка с опциями фильтрации.
+document.getElementById('toolbar').innerHTML = `
+  <div class="search-box">
+    ${svg('search')}
+    <input type="text" id="searchInput" placeholder="Поиск по тексту, автору или сущности...">
+  </div>
+  <div class="filter-pills">
+    <button class="filter-pill active" data-filter="all">Все</button>
+    <button class="filter-pill" data-filter="positive">Позитивные</button>
+    <button class="filter-pill" data-filter="negative">Негативные</button>
+  </div>
+  <button class="aspect-dropdown" id="aspectDropdown">
+    ${svg('filter')}
+    Все аспекты
+    ${svg('chevronDown')}
+  </button>`;
+
+function render(data) {
+  document.getElementById('totalCount').textContent = `${reviewsData.length} отзывов в базе данных`;
+  document.getElementById('resultsCount').textContent = `Найдено ${data.length} отзывов`;
+
+  document.getElementById('reviewsList').innerHTML = data.map(d => {
+    const tagClass = d.sentiment === 'positive' ? 'aspect-positive' : 'aspect-negative';
+    return `<div class="card review-card ${d.sentiment}">
+      <div class="review-header">
+        <div class="review-tags">
+          <span class="review-tag ${tagClass}">${d.aspect}</span>
+          <span class="review-tag entity">${d.entity}</span>
+        </div>
+        <div class="review-votes">
+          <span class="vote">${svg('thumbsup')} ${d.likes}</span>
+          <span class="vote">${svg('thumbDown')} ${d.dislikes}</span>
+        </div>
+      </div>
+      <div class="review-quote ${d.sentiment}">"${d.quote}"</div>
+      <div class="review-text">${d.text}</div>
+      <div class="review-meta">
+        <span class="review-meta-item">${svg('person')} ${d.author}</span>
+        <span class="review-meta-item">${svg('calendar')} ${d.date}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let currentFilter = 'all';
+
+function applyFilters() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  let filtered = reviewsData;
+  if (currentFilter !== 'all') filtered = filtered.filter(d => d.sentiment === currentFilter);
+  if (query) filtered = filtered.filter(d => d.text.toLowerCase().includes(query) || d.quote.toLowerCase().includes(query) || d.author.toLowerCase().includes(query) || d.entity.toLowerCase().includes(query) || d.aspect.toLowerCase().includes(query));
+  render(filtered);
+}
+
+document.querySelectorAll('.filter-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    applyFilters();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('aspectDropdown').addEventListener('click', () => { /* Future: open aspect filter dropdown */ });
+
+fetchJSON('/api/reviews').then(data => {
+  if (!data) { document.getElementById('reviewsList').innerHTML = NO_DATA; return; }
+  reviewsData = data;
+  render(reviewsData);
+});
+</script>
+</body>
+</html>
